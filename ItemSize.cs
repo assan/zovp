@@ -1,0 +1,1 @@
+public enum ItemSize {Null,x1y1,x1y2,x2y1,x2y2,x3y1,x1y3}

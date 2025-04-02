@@ -1,0 +1,1 @@
+public enum ItemType { None, Head, Armor, Clothes, Weapon }
