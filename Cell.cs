@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 public class Cell : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPointerExitHandler
 {
-    public Armory armory;
+
     public Inventory inventory;
     public TMP_Text cellIndex;
     public int x, y;
@@ -27,15 +27,7 @@ public class Cell : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPointerE
             }
         }
 
-        // Пытаемся инициализировать armory через Singleton или оставляем null
-        if (armory == null)
-        {
-            armory = FindObjectOfType<Armory>(); // Лучше заменить на Armory.Instance, если добавишь Singleton
-            if (armory == null)
-            {
-                Debug.LogWarning($"Armory not found for cell: {gameObject.name}");
-            }
-        }
+
     }
 
     void Update()
@@ -99,7 +91,7 @@ public class Cell : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPointerE
         }
     }
 
-    public void Initialized(Inventory inv, Armory armory = null)
+    public void Initialized(Inventory inv)
     {
         inventory = inv;
         if (inventory == null)
@@ -107,14 +99,5 @@ public class Cell : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPointerE
             Debug.LogError($"Inventory passed to Initialized is null for cell: {gameObject.name}");
         }
 
-        this.armory = armory;
-        if (this.armory == null)
-        {
-            this.armory = FindObjectOfType<Armory>(); // Лучше заменить на Armory.Instance
-            if (this.armory == null)
-            {
-                Debug.LogWarning($"Armory not found for cell: {gameObject.name}");
-            }
-        }
     }
 }

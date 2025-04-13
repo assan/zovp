@@ -12,7 +12,6 @@ public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHand
    public CanvasGroup canvasGroup;
     Vector2 positionItem;
     public Cell prefcell;
-    public Armory Armory;
     public Canvas canvas;
     public Cell lastInventoryCell;
     public float defenseBonus; // Бонус к защите
@@ -25,7 +24,6 @@ public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHand
         canvas = FindObjectOfType<Canvas>();
         rectTransform = GetComponent<RectTransform>();
         canvasGroup = GetComponent<CanvasGroup>();
-        Armory = FindObjectOfType<Armory>();
         inventory = Inventory.instance;
         if (inventory == null)
         {

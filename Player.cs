@@ -22,7 +22,16 @@ public class Player : MonoBehaviour
 
     public Inventory inventory; // —сылка на инвентарь
 
-
+    public void Initialize()
+    {
+        inventory = Inventory.instance;
+        if (inventory == null)
+        {
+            Debug.LogError("Inventory not found in Player.Initialize!");
+            return;
+        }
+        UpdateStats();
+    }
 
     void Start()
     {

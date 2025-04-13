@@ -177,5 +177,17 @@ public class Inventory : MonoBehaviour
             }
         }
     }
+    public void AddItemToInventory(Item item, Cell targetCell)
+    {
+        if (CheckCellFree(targetCell, item.GetSize()))
+        {
+            item.transform.SetParent(transformInv);
+            item.SetPosition(item, targetCell);
+            item.prefcell = targetCell;
+            item.lastInventoryCell = targetCell;
+            CellOkupation(targetCell, item.GetSize(), false);
+            UpdateCellsColor(true);
+        }
+    }
 
 }
