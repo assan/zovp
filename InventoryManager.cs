@@ -57,9 +57,9 @@ public class InventoryManager : MonoBehaviour
             {
                 inventory.InitializeInventory();
             }
-            if (Player.instance != null)
+            if (Player.Instance != null)
             {
-                Player.instance.Initialize();
+                Player.Instance.Initialize();
             }
             if (audioSource != null && openSound != null)
             {
@@ -101,9 +101,9 @@ public class InventoryManager : MonoBehaviour
         {
             inventory.InitializeInventory();
         }
-        if (Player.instance != null)
+        if (Player.Instance != null)
         {
-            Player.instance.Initialize();
+            Player.Instance.Initialize();
         }
         if (audioSource != null && openSound != null)
         {

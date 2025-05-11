@@ -18,13 +18,13 @@ public class Player : MonoBehaviour
     public float baseAttack = 5f;
     public float totalDefense;
     public float totalAttack;
-    public static Player instance;
+    public static Player Instance;
 
     public Inventory inventory; // —сылка на инвентарь
 
     public void Initialize()
     {
-        inventory = Inventory.instance;
+        inventory = Inventory.Instance;
         if (inventory == null)
         {
             Debug.LogError("Inventory not found in Player.Initialize!");
@@ -35,12 +35,12 @@ public class Player : MonoBehaviour
 
     void Start()
     {
-        instance = this;
+        Instance = this;
         spriteRenderer = GetComponent<SpriteRenderer>();
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
         audioSource = GetComponent<AudioSource>();
-        inventory = Inventory.instance;
+        inventory = Inventory.Instance;
         UpdateStats();
 
     }

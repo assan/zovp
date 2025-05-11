@@ -1,4 +1,4 @@
-using System.Collections;
+п»їusing System.Collections;
 using System.Collections.Generic;
 using UnityEditor.U2D.Aseprite;
 using UnityEngine;
@@ -12,29 +12,31 @@ public class Inventory : MonoBehaviour
     public Cell CellPref;
     public Cell[,] cells;
     public Item DragedItem;
-    // Слоты экипировки
+    // РЎР»РѕС‚С‹ СЌРєРёРїРёСЂРѕРІРєРё
     public EquipmentSlot headSlot;
     public EquipmentSlot ArmorSlot;
     public EquipmentSlot ClothesSlot;
     public EquipmentSlot weapon1Slot;
     public EquipmentSlot weapon2Slot;
-    private bool isInitialized = false; // Флаг, чтобы отслеживать, были ли ячейки созданы
-    public static Inventory instance;
+    private bool isInitialized = false; // Р¤Р»Р°Рі, С‡С‚РѕР±С‹ РѕС‚СЃР»РµР¶РёРІР°С‚СЊ, Р±С‹Р»Рё Р»Рё СЏС‡РµР№РєРё СЃРѕР·РґР°РЅС‹
+    public static Inventory Instance;
+    
+    
 
 
 
 
     void Awake()
     {
-        if (instance == null)
+        if (Instance == null)
         {
-            instance = this;
+            Instance = this;
         }
         else
         {
             Destroy(gameObject);
         }
-        // Проверяем слоты экипировки
+        // РџСЂРѕРІРµСЂСЏРµРј СЃР»РѕС‚С‹ СЌРєРёРїРёСЂРѕРІРєРё
         if (headSlot == null) Debug.LogWarning("HeadSlot is not assigned in Inventory!");
         if (ArmorSlot == null) Debug.LogWarning("TorsoSlot is not assigned in Inventory!");
         if (ClothesSlot == null) Debug.LogWarning("ArmsSlot is not assigned in Inventory!");
@@ -47,11 +49,11 @@ public class Inventory : MonoBehaviour
     void Start()
     {
 
-        // Если инвентарь изначально активен, создаём ячейки
+        // Р•СЃР»Рё РёРЅРІРµРЅС‚Р°СЂСЊ РёР·РЅР°С‡Р°Р»СЊРЅРѕ Р°РєС‚РёРІРµРЅ, СЃРѕР·РґР°С‘Рј СЏС‡РµР№РєРё
         if (gameObject.activeInHierarchy)
         {
             CreateNewInventory();
-            ClearInventoryCells(); // Освобождаем все ячейки при старте
+            ClearInventoryCells(); // РћСЃРІРѕР±РѕР¶РґР°РµРј РІСЃРµ СЏС‡РµР№РєРё РїСЂРё СЃС‚Р°СЂС‚Рµ
         }
 
 
@@ -181,12 +183,35 @@ public class Inventory : MonoBehaviour
     {
         if (CheckCellFree(targetCell, item.GetSize()))
         {
-            item.transform.SetParent(transformInv);
-            item.SetPosition(item, targetCell);
+            // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЂРѕРґРёС‚РµР»СЏ РґР»СЏ РїСЂРµРґРјРµС‚Р°
+            item.transform.parent = transformInv;
+
+            // РќР°СЃС‚СЂР°РёРІР°РµРј RectTransform
+            RectTransform itemRect = item.GetComponent<RectTransform>();
+            itemRect.localScale = Vector3.one;
+            // РќРµ СѓСЃС‚Р°РЅР°РІР»РёРІР°РµРј sizeDelta РІСЂСѓС‡РЅСѓСЋ, РїСѓСЃС‚СЊ GridLayoutGroup СЃР°Рј СѓРїСЂР°РІР»СЏРµС‚ СЂР°Р·РјРµСЂРѕРј
+            itemRect.anchoredPosition = targetCell.GetComponent<RectTransform>().anchoredPosition;
+
+            // РќР°СЃС‚СЂР°РёРІР°РµРј CanvasGroup
+            CanvasGroup itemCanvasGroup = item.GetComponent<CanvasGroup>();
+            if (itemCanvasGroup != null)
+            {
+                itemCanvasGroup.alpha = 1f;
+                itemCanvasGroup.blocksRaycasts = true;
+            }
+
+            // РћР±РЅРѕРІР»СЏРµРј СЃСЃС‹Р»РєРё РІ Item
             item.prefcell = targetCell;
             item.lastInventoryCell = targetCell;
             CellOkupation(targetCell, item.GetSize(), false);
             UpdateCellsColor(true);
+
+            Debug.Log($"Item {item.gameObject.name} added to inventory at cell ({targetCell.x}, {targetCell.y})");
+            Debug.Log($"Item {item.gameObject.name} state after adding: Position={itemRect.anchoredPosition}, Scale={itemRect.localScale}, Alpha={itemCanvasGroup.alpha}");
+        }
+        else
+        {
+            Debug.LogWarning($"Cannot add item {item.gameObject.name} to cell ({targetCell.x}, {targetCell.y}): cell is not free.");
         }
     }
 

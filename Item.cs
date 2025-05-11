@@ -1,88 +1,123 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
-public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHandler, IDropHandler, IPointerClickHandler
+public class Item : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-    public ItemSize Size;
     public ItemType itemType;
-    Inventory inventory;
-    RectTransform rectTransform;
-   public CanvasGroup canvasGroup;
-    Vector2 positionItem;
+    public ItemSize itemSize;
+    public float defenseBonus;
+    public float attackBonus;
+
     public Cell prefcell;
-    public Canvas canvas;
     public Cell lastInventoryCell;
-    public float defenseBonus; // Бонус к защите
-    public float attackBonus;  // Бонус к атаке
-    
+    public Inventory inventory;
+    public CanvasGroup canvasGroup;
 
+    private Chest currentChest; // Ссылка на сундук, если предмет находится в сундуке
+    private Transform originalParent;
+    private Vector3 originalPosition;
+    public Canvas canvas;
+    private RectTransform rectTransform;
+    public Item prefabReference; // Ссылка на префаб этого предмета
 
-    void Start()
+    void Awake()
     {
-        canvas = FindObjectOfType<Canvas>();
-        rectTransform = GetComponent<RectTransform>();
         canvasGroup = GetComponent<CanvasGroup>();
-        inventory = Inventory.instance;
+        if (canvasGroup == null)
+        {
+            canvasGroup = gameObject.AddComponent<CanvasGroup>();
+        }
+
+        rectTransform = GetComponent<RectTransform>();
+        canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogError($"Canvas not found for item: {gameObject.name}");
+        }
+
+        inventory = Inventory.Instance;
         if (inventory == null)
         {
             Debug.LogError($"Inventory not found for item: {gameObject.name}");
         }
+        Debug.Log($"Item {gameObject.name} created with parent: {(transform.parent != null ? transform.parent.name : "null")}");
     }
 
-    void Update()
+    // Устанавливаем ссылку на сундук
+    public void SetChest(Chest chest)
     {
+        currentChest = chest;
+        inventory = currentChest == null ? Inventory.Instance : null; // Если предмет в сундуке, отключаем ссылку на инвентарь
+
+        // Меняем внешний вид, чтобы визуально различать предметы в сундуке
+        Image itemImage = GetComponent<Image>();
+        if (itemImage != null)
+        {
+            itemImage.color = currentChest != null ? new Color(1f, 0.8f, 0.8f) : Color.white; // Лёгкий красный оттенок в сундуке
+        }
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        mouseItemController.SetItem(GetComponent<Image>().sprite); //создаём клон изображения на mouseItem
         Debug.Log($"OnBeginDrag called for item: {gameObject.name}, prefcell: {(prefcell != null ? prefcell.gameObject.name : "null")}, lastInventoryCell: {(lastInventoryCell != null ? lastInventoryCell.gameObject.name : "null")}");
+
         canvasGroup.alpha = 0.7f;
         canvasGroup.blocksRaycasts = false;
 
-        if (inventory == null || !inventory.gameObject.activeInHierarchy)
+        originalParent = transform.parent;
+        originalPosition = transform.position;
+        // transform.SetParent(canvas.transform,false); // Перемещаем на верхний уровень Canvas
+        transform.parent = canvas.transform;
+        // Если предмет был в инвентаре
+        if (currentChest == null)
         {
-            Debug.LogError($"Inventory is null or not active in OnBeginDrag for item: {gameObject.name}");
-            return;
+            inventory = Inventory.Instance;
+            if (inventory == null || !inventory.gameObject.activeInHierarchy)
+            {
+                Debug.LogError($"Inventory is null or not active in OnBeginDrag for item: {gameObject.name}");
+                return;
+            }
+
+            inventory.DragedItem = this;
+
+            EquipmentSlot currentSlot = originalParent.GetComponent<EquipmentSlot>();
+            if (currentSlot != null)
+            {
+                Debug.Log($"Item was in EquipmentSlot: {currentSlot.gameObject.name}");
+                currentSlot.equippedItem = null;
+                if (lastInventoryCell != null)
+                {
+                    Debug.Log($"Freeing cells starting from lastInventoryCell: {lastInventoryCell.gameObject.name}");
+                    inventory.CellOkupation(lastInventoryCell, GetSize(), true);
+                }
+
+                if (Player.Instance != null && Player.Instance.gameObject.activeInHierarchy)
+                {
+                    Debug.Log($"Updating player stats after removing item {gameObject.name} from slot {currentSlot.gameObject.name}");
+                    Player.Instance.UpdateStats();
+                }
+                else
+                {
+                    Debug.LogWarning("Player not found or not active in OnBeginDrag!");
+                }
+            }
+            else if (prefcell != null)
+            {
+                Debug.Log($"Freeing cells starting from prefcell: {prefcell.gameObject.name}");
+                inventory.CellOkupation(prefcell, GetSize(), true);
+            }
+
+            inventory.UpdateCellsColor();
         }
+    }
 
-        inventory.DragedItem = this;
-
-        EquipmentSlot currentSlot = transform.parent.GetComponent<EquipmentSlot>();
-        if (currentSlot != null)
-        {
-            Debug.Log($"Item was in EquipmentSlot: {currentSlot.gameObject.name}");
-            currentSlot.equippedItem = null;
-            transform.SetParent(canvas.transform);
-
-            if (lastInventoryCell != null)
-            {
-                Debug.Log($"Freeing cells starting from lastInventoryCell: {lastInventoryCell.gameObject.name}");
-                inventory.CellOkupation(lastInventoryCell, GetSize(), true);
-            }
-            else
-            {
-                Debug.LogWarning($"lastInventoryCell is null for item {gameObject.name}. Cannot free cells.");
-            }
-
-            if (Player.instance != null && Player.instance.gameObject.activeInHierarchy)
-            {
-                Debug.Log($"Updating player stats after removing item {gameObject.name} from slot {currentSlot.gameObject.name}");
-                Player.instance.UpdateStats();
-            }
-            else
-            {
-                Debug.LogWarning("Player not found or not active in OnBeginDrag!");
-            }
-        }
-        else if (prefcell != null)
-        {
-            Debug.Log($"Freeing cells starting from prefcell: {prefcell.gameObject.name}");
-            inventory.CellOkupation(prefcell, GetSize(), true);
-        }
-
-        inventory.UpdateCellsColor();
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (Time.timeScale == 0) return;
+        //rectTransform.anchoredPosition = eventData.position / canvas.scaleFactor;
+        transform.position = Input.mousePosition;
     }
 
     public void OnEndDrag(PointerEventData eventData)
@@ -90,26 +125,63 @@ public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHand
         canvasGroup.alpha = 1f;
         canvasGroup.blocksRaycasts = true;
 
-        if (inventory == null || !inventory.gameObject.activeInHierarchy)
-        {
-            Debug.LogError($"Inventory is null or not active in OnEndDrag for item: {gameObject.name}");
-            return;
-        }
-
-        inventory.DragedItem = null;
-
         GameObject droppedObject = eventData.pointerCurrentRaycast.gameObject;
         Cell targetCell = null;
         EquipmentSlot targetSlot = null;
+        Transform chestContainer = null;
 
         if (droppedObject != null)
         {
             targetCell = droppedObject.GetComponent<Cell>();
             targetSlot = droppedObject.GetComponent<EquipmentSlot>();
+            chestContainer = droppedObject.transform.parent; // Проверяем, сброшен ли предмет в контейнер сундука
         }
 
+        // Если предмет сброшен в ячейку инвентаря
+  
+        if (targetCell != null)
+        {
+            Inventory targetInventory = targetCell.GetComponentInParent<Inventory>();
+            if (targetInventory != null && targetInventory.CheckCellFree(targetCell, GetSize()))
+            {
+                Debug.Log($"Attempting to transfer item {gameObject.name} from chest to inventory at cell ({targetCell.x}, {targetCell.y})");
+
+                // Сначала добавляем предмет в инвентарь
+                inventory = targetInventory;
+                inventory.DragedItem = null;
+                inventory.AddItemToInventory(this, targetCell);
+
+                // Затем удаляем его из сундука
+                if (currentChest != null)
+                {
+                    currentChest.RemoveItem(this);
+                    currentChest = null;
+                }
+
+                Debug.Log($"Successfully transferred item {gameObject.name} to inventory.");
+                return;
+            }
+            else
+            {
+                Debug.LogWarning($"Cannot transfer item {gameObject.name} to inventory: cell ({targetCell.x}, {targetCell.y}) is not free.");
+            }
+            Debug.Log($"OnEndDrag finished for item {gameObject.name}. Current parent: {(transform.parent != null ? transform.parent.name : "null")}");
+        }
+
+        // Если предмет сброшен в слот экипировки
         if (targetSlot != null && targetSlot.slotType == itemType)
         {
+            if (currentChest != null)
+            {
+                currentChest.RemoveItem(this);
+                currentChest = null;
+            }
+
+            inventory = Inventory.Instance;
+            if (inventory == null) return;
+
+            inventory.DragedItem = null;
+
             if (targetSlot.equippedItem != null)
             {
                 targetSlot.ReturnItemToInventory(targetSlot.equippedItem);
@@ -117,37 +189,90 @@ public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHand
             targetSlot.equippedItem = this;
             transform.SetParent(targetSlot.transform);
             transform.localPosition = Vector3.zero;
-            // Сохраняем последнюю ячейку инвентаря перед экипировкой
             if (prefcell != null)
             {
                 lastInventoryCell = prefcell;
             }
             prefcell = null;
-            if (Player.instance != null && Player.instance.gameObject.activeInHierarchy)
+            if (Player.Instance != null && Player.Instance.gameObject.activeInHierarchy)
             {
-                Player.instance.UpdateStats();
+                Player.Instance.UpdateStats();
             }
             inventory.UpdateCellsColor();
             return;
         }
 
-        if (targetCell != null)
+        // Если предмет сброшен в контейнер сундука
+        if (chestContainer != null)
         {
-            if (inventory.CheckCellFree(targetCell, GetSize()))
+            Chest chest = chestContainer.GetComponentInParent<Chest>();
+            if (chest != null)
             {
-                SetPosition(this, targetCell);
-                prefcell = targetCell;
-                lastInventoryCell = targetCell;
-                inventory.CellOkupation(targetCell, GetSize(), false);
-                inventory.UpdateCellsColor(true);
+                // Если предмет был в инвентаре, освобождаем ячейки
+                if (inventory != null)
+                {
+                    if (prefcell != null)
+                    {
+                        inventory.CellOkupation(prefcell, GetSize(), true);
+                    }
+                    else if (lastInventoryCell != null)
+                    {
+                        inventory.CellOkupation(lastInventoryCell, GetSize(), true);
+                    }
+                    inventory.DragedItem = null;
+                    inventory.UpdateCellsColor();
+                }
+
+                // Добавляем предмет в сундук
+                inventory = null;
+                prefcell = null;
+                lastInventoryCell = null;
+                currentChest = chest;
+                chest.AddItem(this);
                 return;
             }
         }
 
+        // Если сброшен за пределы инвентаря, слотов или сундука — выбрасываем предмет
+        if (targetCell == null && targetSlot == null && chestContainer == null)
+        {
+            Debug.Log($"Item {gameObject.name} dropped outside inventory, equipment slots, or chest. Destroying item.");
+            if (currentChest != null)
+            {
+                currentChest.RemoveItem(this);
+                currentChest = null;
+            }
+            else if (inventory != null)
+            {
+                if (prefcell != null)
+                {
+                    inventory.CellOkupation(prefcell, GetSize(), true);
+                }
+                else if (lastInventoryCell != null)
+                {
+                    inventory.CellOkupation(lastInventoryCell, GetSize(), true);
+                }
+                inventory.DragedItem = null;
+                inventory.UpdateCellsColor();
+            }
+            Destroy(gameObject);
+            return;
+        }
+
+        // Если не удалось разместить предмет, возвращаем его на место
+        if (currentChest != null)
+        {
+            transform.SetParent(originalParent);
+            transform.position = originalPosition;
+            return;
+        }
+
+        if (inventory == null) inventory = Inventory.Instance;
         if (prefcell != null)
         {
             SetPosition(this, prefcell);
             inventory.UpdateCellsColor();
+            inventory.DragedItem = null;
             return;
         }
 
@@ -163,6 +288,7 @@ public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHand
                     lastInventoryCell = cell;
                     inventory.CellOkupation(cell, GetSize(), false);
                     inventory.UpdateCellsColor(true);
+                    inventory.DragedItem = null;
                     return;
                 }
             }
@@ -170,80 +296,31 @@ public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHand
 
         Debug.LogWarning("Нет места в инвентаре! Предмет возвращён в исходную позицию.");
         inventory.UpdateCellsColor();
-    }
+        inventory.DragedItem = null;
 
-    public void OnDrag(PointerEventData eventData)
-    {
-        Vector2 localPointerPosition;
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            canvas.transform as RectTransform,
-            eventData.position,
-            eventData.pressEventCamera,
-            out localPointerPosition
-        );
-        rectTransform.anchoredPosition = localPointerPosition;
-    }
-
-    public void OnDrop(PointerEventData eventData)
-    {
-        var dragItem = eventData.pointerDrag.GetComponent<Item>();
-        if (dragItem == null) return;
-
-        if (dragItem.prefcell != null)
-        {
-            SetPosition(dragItem, dragItem.prefcell);
-            if (inventory != null)
-            {
-                inventory.CellOkupation(dragItem.prefcell, dragItem.GetSize(), false);
-                inventory.UpdateCellsColor();
-            }
-            else
-            {
-                Debug.LogError($"Inventory is null in OnDrop for item: {gameObject.name}");
-            }
-        }
+        // Добавляем отладку, чтобы видеть, где находится предмет после сброса
+        Debug.Log($"Item {gameObject.name} dropped. Current location: {(currentChest != null ? "Chest" : inventory != null ? "Inventory" : "Dropped")}");
     }
 
     public void SetPosition(Item item, Cell cell)
     {
-        if (!cell)
+        transform.SetParent(cell.transform.parent);
+        RectTransform itemRect = GetComponent<RectTransform>();
+        itemRect.anchoredPosition = cell.GetComponent<RectTransform>().anchoredPosition;
+        itemRect.localScale = Vector3.one;
+        itemRect.sizeDelta = new Vector2(32, 32);
+        CanvasGroup itemCanvasGroup = GetComponent<CanvasGroup>();
+        if (itemCanvasGroup != null)
         {
-            return;
+            itemCanvasGroup.alpha = 1f;
+            itemCanvasGroup.blocksRaycasts = true;
         }
-        item.transform.SetParent(cell.transform);
-        item.transform.localPosition = Vector3.zero;
-        var ItemSize = item.GetSize();
-        var newPos = item.transform.localPosition;
-        if (ItemSize.x == 3)
-        {
-            newPos.x += 50f;
-        }
-        if (ItemSize.y == 3)
-        {
-            newPos.y -= 50f;
-        }
-        if (ItemSize.x == 2)
-        {
-            newPos.x += ItemSize.x * 12.5f;
-        }
-        if (ItemSize.y == 2)
-        {
-            newPos.y -= ItemSize.y * 12.5f;
-        }
-        item.transform.localPosition = newPos;
-        item.transform.SetParent(canvas.transform);
-        if (inventory != null)
-        {
-            inventory.CellOkupation(cell, ItemSize, false);
-            inventory.UpdateCellsColor();
-        }
-        lastInventoryCell = cell;
     }
 
     public Vector2Int GetSize()
     {
         Vector2Int size;
-        switch (Size)
+        switch (itemSize)
         {
             case ItemSize.x1y1:
                 return size = Vector2Int.one;
@@ -255,6 +332,8 @@ public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHand
                 return size = new Vector2Int(2, 2);
             case ItemSize.x1y2:
                 return size = new Vector2Int(1, 2);
+            case ItemSize.x1y3: // Добавляем поддержку нового размера после поворота
+                return size = new Vector2Int(1, 3);
         }
         return size = Vector2Int.zero;
     }
@@ -292,17 +371,24 @@ public class Item : MonoBehaviour, IBeginDragHandler, IEndDragHandler, IDragHand
     {
         var rect = rectTransform.sizeDelta;
         rectTransform.sizeDelta = new Vector2(rect.y, rect.x);
-        switch (Size)
+        switch (itemSize)
         {
             case ItemSize.x2y1:
-                Size = ItemSize.x1y2;
+                itemSize = ItemSize.x1y2;
                 break;
             case ItemSize.x3y1:
-                Size = ItemSize.x1y3;
+                itemSize = ItemSize.x1y3;
                 break;
             case ItemSize.x1y2:
-                Size = ItemSize.x2y1;
+                itemSize = ItemSize.x2y1;
+                break;
+            case ItemSize.x1y3:
+                itemSize = ItemSize.x3y1;
                 break;
         }
+    }
+    void OnDestroy()
+    {
+        Debug.Log($"Item {gameObject.name} was destroyed.");
     }
 }

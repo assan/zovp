@@ -102,6 +102,6 @@ public class EquipmentSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler, 
         ReturnItemToInventory(equippedItem);
         equippedItem = null;
         FindObjectOfType<Player>().UpdateStats();
-        Player.instance.UpdateStats();
+        Player.Instance.UpdateStats();
     }
 }
